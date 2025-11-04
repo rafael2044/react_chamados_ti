@@ -4,9 +4,7 @@ import useAuth from '../hooks/useAuth'
 
 function ChamadoItem({ chamado,
   onAtender = () => {} ,
-  handlerFinalizar = () => {},
-  handlerDownloadAnexo = ()=>{},
-  handlerDownloadAnexoChamado = ()=>{},
+  handlerFinalizarChamado = () => {},
   isLoading = false}) {
   const [aberto, setAberto] = useState(false);
   const {isAdmin, isSuporte} = useAuth();
@@ -94,7 +92,7 @@ function ChamadoItem({ chamado,
                   disabled={isLoading}
                   onClick={(e) => {
                     e.stopPropagation(); // evita fechar/abrir accordion ao clicar no botão
-                    handlerFinalizar(chamado.id);
+                    handlerFinalizarChamado(chamado.id);
                   }}
                 >
                   Finalizar Chamado

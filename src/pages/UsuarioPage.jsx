@@ -77,7 +77,7 @@ const UsuarioPage = () => {
 
     const excluirUsuario = async (id) => {
         if (!window.confirm("Tem certeza que deseja excluir esta unidade?")) return;
-        setIsLoading(false);
+        setIsLoading(true);
         try {
             await api.delete(`/user/${id}`);
             showToast("Usuário deletado com sucesso", "success")
@@ -89,7 +89,7 @@ const UsuarioPage = () => {
             console.error("Erro ao excluir unidade:", error);
             showToast("Erro ao deletar usuário", "error")
         }finally{
-            setIsLoading(true);
+            setIsLoading(false);
         }
     };
 

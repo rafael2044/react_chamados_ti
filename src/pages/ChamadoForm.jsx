@@ -28,7 +28,9 @@ const ChamadoForm = () => {
       try {
           const res = await api.get("/unidade/");
           setUnidades(res.data);
-          setUnidade(res.data[0].id)
+          if (res.data.length > 0){
+            setUnidade(res.data[0].id)
+          }
           setLoading(false);
         } catch (err) {
           console.error(err);
@@ -40,7 +42,9 @@ const ChamadoForm = () => {
       try {
         const res = await api.get("/modulo/");
         setModulos(res.data);
-        setModulo(res.data[0].id)
+        if (res.data.length > 0){
+          setModulo(res.data[0].id)
+        }
         setLoading(false);
       } catch (err) {
         console.error(err);
@@ -56,7 +60,6 @@ const ChamadoForm = () => {
   const showToast = (message, type = "info") => {
     setToast({ show: true, message, type });
   };
-  
 
   async function enviarAnexo(chamadoId, arquivo) {
       const formData = new FormData();
@@ -87,9 +90,9 @@ const ChamadoForm = () => {
         }
         showToast(response.data.message, 'success')
         setTitulo("")
-        setUnidade(1)
+        setUnidade(unidades[0].id)
         setSetor("")
-        setModulo(1)
+        setModulo(modulos[0].id)
         setUrgencia("Média")
         setDescricao("")
         setAnexo("")

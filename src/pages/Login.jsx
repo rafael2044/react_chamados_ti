@@ -30,7 +30,8 @@ const Login = () => {
       setIsLoading(false);
     } catch (err) {
       console.error(err);
-      showToast(`Erro no login: ${err}`, "error")
+      showToast(`${err.response.data.detail}`, 'error')
+
     }finally{
       setIsLoading(false);
     }

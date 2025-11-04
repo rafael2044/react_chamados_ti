@@ -4,10 +4,9 @@ import ToastMessage from "../components/ToastMessage";
 import ChamadoItem from "../components/ChamadoItem";
 import ModalAtendimento from "../components/ModalAtendimento";
 
-const ITEMS_PER_PAGE = 3;
+const ITEMS_PER_PAGE = 5;
 
 const Chamados = () => {
-  //const [dataInfo, setDataInfo] = useState();
   const [data, setData] = useState({
     chamados: [],
     total: 0,
@@ -70,10 +69,11 @@ const Chamados = () => {
 
   const handleSearch = (e) => {
     setSearch(e.target.value);
-    setCurrentPage(1); // Reset para página 1
+    setCurrentPage(1);
   };
 
   const onSubmitAtendimento = async (idChamado, data)=>{
+    if (!window.confirm("Tem certeza que deseja inserir o atendimento?")) return;
     setIsLoading(true);
     try {
       const response = await api.post(
@@ -107,7 +107,8 @@ const Chamados = () => {
     }
   }
 
-  const onFinalizar = async (chamadoId) => {
+  const onFinalizarChamado = async (chamadoId) => {
+    if (!window.confirm("Tem certeza que deseja finalizar o chamado?")) return;
     setIsLoading(true);
     try {
       const response = await api.patch(
@@ -129,88 +130,6 @@ const Chamados = () => {
     } catch (error) {
       console.error(error);
       showToast("Aconteceu um erro ao tentar finalizar o chamado.", 'error');
-    }finally{
-      setIsLoading(false);
-    }
-  }
-
-  const downloadAnexoAtendimento = async (atendimento_id) => {
-    setIsLoading(true);
-    try{
-      const response = await api.get(
-        `/atendimento/${atendimento_id}/anexo`, 
-        {responseType: 'blob'});
-      const blob = response.data;
-
-      const contentDisposition = response.headers['content-disposition']; 
-      
-      let filename = 'anexo_atendimento'; // Nome padrão
-      
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="?([^"]+)"?/);
-        if (match && match[1]) {
-          filename = match[1];
-          console.log("Filename extraído:", filename);
-        } else {
-          console.error("Não foi possível extrair o filename do header.");
-        }
-      }
-
-      // ... (O resto do código para criar o link e clicar)
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-
-
-    }catch(error){
-      console.error(error)
-      showToast("Erro ao baixar anexo", "error")
-    }finally{
-      setIsLoading(false);
-    }
-  }
-
-  const downloadAnexoChamado = async (chamado_id) => {
-    setIsLoading(true);
-    try{
-      const response = await api.get(
-        `/chamados/${chamado_id}/anexo`, 
-        {responseType: 'blob'});
-      const blob = response.data;
-
-      const contentDisposition = response.headers['content-disposition']; 
-      
-      let filename = 'anexo_atendimento'; // Nome padrão
-      
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="?([^"]+)"?/);
-        if (match && match[1]) {
-          filename = match[1];
-          console.log("Filename extraído:", filename);
-        } else {
-          console.error("Não foi possível extrair o filename do header.");
-        }
-      }
-
-      // ... (O resto do código para criar o link e clicar)
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-
-
-    }catch(error){
-      console.error(error)
-      showToast("Erro ao baixar anexo", "error")
     }finally{
       setIsLoading(false);
     }
@@ -259,9 +178,7 @@ const Chamados = () => {
                   key={chamado.id}
                   chamado={chamado}
                   onAtender={handleAtender}
-                  handlerFinalizar={onFinalizar}
-                  handlerDownloadAnexo={downloadAnexoAtendimento}
-                  handlerDownloadAnexoChamado = {downloadAnexoChamado}
+                  handlerFinalizarChamado={onFinalizarChamado}
                   isLoading = {isLoading}
                 />
               ))}

@@ -5,6 +5,7 @@ import ToastMessage from "../components/ToastMessage";
 function Register() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState({
     show: false,
     message: "",
@@ -16,6 +17,7 @@ function Register() {
   };
 
   const handleRegister = async (e) => {
+    setIsLoading(true);
     e.preventDefault();
     try {
       await api.post("/register", { username, password });
@@ -26,8 +28,10 @@ function Register() {
       if (error.response.status === 409){
         showToast("Usuário já cadastrado", "warning")
       }else {
-        showToast("Erro ao registrar usuário", "error")
+        showToast(`${error.response.data.detail}`, "error")
       }
+    }finally{
+      setIsLoading(false)
     }
   };
 
@@ -64,7 +68,10 @@ function Register() {
                   />
                 </div>
 
-                <button type="submit" className="btn btn-success w-100">
+                <button
+                type="submit"
+                className="btn btn-success w-100"
+                disabled={isLoading}>
                   Cadastrar
                 </button>
               </form>
