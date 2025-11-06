@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import api from "../services/api";
 import ToastMessage from "../components/ToastMessage";
+import logo from "../assets/Logo.png"
 
 const Login = () => {
   const [form, setForm] = useState({ username: "", password: "" });
@@ -43,7 +44,13 @@ const Login = () => {
         <div className="col-md-4">
           <div className="card shadow-sm">
             <div className="card-body">
-              <h3 className="card-title text-center mb-3">Login</h3>
+              <img 
+                        src={logo} 
+                        alt="Logo da Empresa" 
+                        height="75" // Defina uma altura
+                        className="d-block mx-auto" // Classes do Bootstrap
+              />
+              <h4 className="card-title text-center mb-3">Bem-Vindo(a)</h4>
               <form onSubmit={handleSubmit}>
                 <div className="mb-3">
                   <label htmlFor="username" className="form-label">Usuário</label>

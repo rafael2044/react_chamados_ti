@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import {logout} from "../services/auth";
 import useAuth from '../hooks/useAuth'
+import logo from '../assets/Logo.png';
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -12,9 +13,17 @@ const Navbar = () => {
   };
 
     return (
-        <nav className="navbar navbar-expand-lg navbar-dark bg-primary">
+        <nav className="navbar navbar-expand-lg navbar-light bg-light border-bottom">
             <div className="container">
-                <Link className="navbar-brand" to="/">Sistema T.I</Link>
+                <Link className="navbar-brand d-flex align-items-center" to="/">
+                    <img 
+                        src={logo} 
+                        alt="Logo da Empresa" 
+                        height="50" // Defina uma altura
+                        className="d-inline-block me-2" // Classes do Bootstrap
+                    />
+                    Chamados T.I
+                </Link>
                 <button
                     className="navbar-toggler"
                     type="button"
@@ -28,14 +37,15 @@ const Navbar = () => {
                 </button>
 
                 <div className="collapse navbar-collapse" id="navbarNav">
+
                     <ul className="navbar-nav ms-auto">
                         {!user ? (
                             <>
                                 <li className="nav-item">
-                                    <Link className="nav-link" to="/login">Entrar</Link>
+                                    <Link className="nav-link" to="/login">Iniciar Sessão</Link>
                                 </li>
                                 <li className="nav-item">
-                                    <Link className="nav-link" to="/register">Registrar</Link>
+                                    <Link className="btn btn-outline-primary ms-lg-2" to="/register">Registrar-se</Link>
                                 </li>
                             </>
                         ) : (
@@ -63,8 +73,13 @@ const Navbar = () => {
                                     </>
                                 )
                                 }
+                                <li className="nav-item my-auto">
+                                    <span className="navbar-text me-2">
+                                        Olá, {user.sub || 'Usuário'}
+                                    </span>
+                                </li>
                                 <li className="nav-item">
-                                    <button className="btn btn-danger ms-2" onClick={handleLogout}>Sair</button>
+                                    <button className="btn btn-outline-danger" onClick={handleLogout}>Sair</button>
                                 </li>
                             </>
                         )}
