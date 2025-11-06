@@ -1,7 +1,6 @@
 import {useEffect, useState} from "react";
 import api from "../services/api";
 import ToastMessage from "../components/ToastMessage";
-import ModalConfimation from "../components/ModalConfimation";
 
 const ITEMS_PER_PAGE = 5;
 
@@ -11,6 +10,8 @@ const UsuarioPage = () => {
     const [privilegio, setPrivilegio] = useState(1);
     const [privilegios, setPrivilegios] = useState([])
     const [currentPage, setCurrentPage] = useState(1)
+    const [isLoading, setIsLoading] = useState(false);
+    const [loading, setLoading] = useState(true)
     const [data, setData] = useState({
         users: [],
         total: 0,
@@ -19,39 +20,14 @@ const UsuarioPage = () => {
         total_pages: 0
     })
     const [search, setSearch] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [loading, setLoading] = useState(true)
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalData, setModalData] = useState({
-        title: "",
-        message: "",
-        onConfirm: ()=>{}
-    });
     const [toast, setToast] = useState({
         show: false,
         message: "",
         type: "info",
     });
 
-    const handleOpenModalConf = (title, message, onConfirm) => {
-        setIsModalOpen(true)
-        setModalData({title, message, onConfirm});
-    }
-    
     const showToast = (message, type = "info") => {
         setToast({ show: true, message, type });
-    };
-
-    const fetchUsuarios = async () => {
-            try {
-                const res = await api.get(`/user/?offset=${currentPage}&limit=${ITEMS_PER_PAGE}&search=${search}`);
-                setData(res.data);
-                setLoading(false)
-            } catch (err) {
-                console.error(err);
-                setLoading(false)
-                showToast("Erro ao carregar usuários", "error")
-            }
     };
 
     useEffect(() => {
@@ -62,6 +38,17 @@ const UsuarioPage = () => {
             } catch (err) {
                 console.error(err);
                 showToast("Erro ao carregar privilégios", "error")
+            }
+        };
+        const fetchUsuarios = async () => {
+            try {
+                const res = await api.get(`/user/?offset=${currentPage}&limit=${ITEMS_PER_PAGE}&search=${search}`);
+                setData(res.data);
+                setLoading(false)
+            } catch (err) {
+                console.error(err);
+                setLoading(false)
+                showToast("Erro ao carregar usuários", "error")
             }
         };
         fetchPrivilegios();
@@ -88,19 +75,21 @@ const UsuarioPage = () => {
         }
     };
 
-    const excluirUsuario = async (id, username) => {
+    const excluirUsuario = async (id) => {
+        if (!window.confirm("Tem certeza que deseja excluir esta unidade?")) return;
         setIsLoading(true);
         try {
             await api.delete(`/user/${id}`);
-            await fetchUsuarios()
-            showToast(`O usuário ${username} foi excluido.`, "success")
-            setIsModalOpen(false);
+            showToast("Usuário deletado com sucesso", "success")
+            setData(prevData => ({
+                ...prevData,
+                users: prevData.users.filter(user => user.id !== id)
+            }))
         } catch (error) {
-            console.error("Erro ao tentar excluir usuário:", error);
-            showToast("Erro ao tentar excluir usuário", "error")
+            console.error("Erro ao excluir unidade:", error);
+            showToast("Erro ao deletar usuário", "error")
         }finally{
             setIsLoading(false);
-            setIsModalOpen(false);
         }
     };
 
@@ -202,13 +191,7 @@ const UsuarioPage = () => {
                                         <button
                                             className="btn btn-sm btn-outline-danger"
                                             disabled={isLoading}
-                                            onClick={() => {
-                                                handleOpenModalConf(
-                                                    "Excluir Usuário",
-                                                    `Você deseja excluir o usuário ${usuario.username}?`,
-                                                    () => excluirUsuario(usuario.id, usuario.username) 
-                                                );
-                                            }}
+                                            onClick={() => excluirUsuario(usuario.id)}
                                         >
                                             Excluir
                                         </button>
@@ -269,13 +252,6 @@ const UsuarioPage = () => {
             onClose={() => setToast((prev) => ({ ...prev, show: false }))}
             position="bottom-end" // ou top-end, bottom-start, etc.
             />
-            <ModalConfimation
-            isOpen={isModalOpen}
-            title={modalData.title}
-            message={modalData.message}
-            onConfirm={modalData.onConfirm}
-            onCancel={()=> setIsModalOpen(false)}
-        />
         </div>
     );
 };

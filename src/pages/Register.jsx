@@ -41,7 +41,7 @@ function Register() {
         <div className="col-md-5">
           <div className="card shadow-sm">
             <div className="card-body p-4">
-              <h2 className="card-title text-center mb-4">Registrar</h2>
+              <h2 className="card-title text-center mb-4">Registrar Usuário</h2>
 
               <form onSubmit={handleRegister}>
                 <div className="mb-3">
