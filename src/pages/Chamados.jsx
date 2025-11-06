@@ -3,6 +3,8 @@ import api from "../services/api";
 import ToastMessage from "../components/ToastMessage";
 import ChamadoItem from "../components/ChamadoItem";
 import ModalAtendimento from "../components/ModalAtendimento";
+import ModalChamado from "../components/ModalChamado";
+import ModalConfimation from "../components/ModalConfimation";
 
 const ITEMS_PER_PAGE = 5;
 
@@ -14,21 +16,26 @@ const Chamados = () => {
     limit: ITEMS_PER_PAGE,
     total_pages: 0
   });
-  const [modalAberto, setModalAberto] = useState(false);
+  const [modalAtendimentoAberto, setModalAtendimentoAberto] = useState(false);
+  const [modalChamadoAberto, setModalChamadoAberto] = useState(false);
+  const [ModalConfAberto, setModalConfAberto] = useState(false);
   const [chamadoSelecionado, setChamadoSelecionado] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [modalConfData, setModalConfData] = useState({
+    title: "",
+    message: "",
+    onConfirm: ()=>{}
+  })
   const [toast, setToast] = useState({
         show: false,
         message: "",
         type: "info",
       });
   
-
-  useEffect(() => {
-    const fetchChamados = async () => {
+  const fetchChamados = async () => {
       try {
         const res = await api.get(`/chamados/?offset=${currentPage}&limit=${ITEMS_PER_PAGE}&search=${search}`);
         setData(res.data);
@@ -39,24 +46,37 @@ const Chamados = () => {
         setLoading(false);
       }
     };
-
+    
+  useEffect(() => {
     fetchChamados();
   }, [currentPage, search]);
   
-  const handleAtender = (chamadoId) => {
+  const handleOpenModalAtender = (chamadoId) => {
     const chamado = data.chamados.find((c) => c.id === chamadoId);
     setChamadoSelecionado(chamado);
-    setModalAberto(true);
+    setModalAtendimentoAberto(true);
   };
 
-  const handleCloseModal = () => {
-    setModalAberto(false);
+  const handleOpenConfModal = (title, message, onConfirm) => {
+    setModalConfAberto(true)
+    setModalConfData({
+      title,
+      message,
+      onConfirm 
+    })
+  }
+
+  const handlerOpenModalEditar = (chamadoId) => {
+    const chamado = data.chamados.find((c)=>c.id === chamadoId);
+    setChamadoSelecionado(chamado);
+    setModalChamadoAberto(true);
+  }
+
+  const handleCloseAllModal = () => {
+    setModalConfAberto(false);
+    setModalChamadoAberto(false);
+    setModalAtendimentoAberto(false);
     setChamadoSelecionado(null);
-  };
-
-  const handleSubmit = (chamadoId, formData) => {
-    onSubmitAtendimento(chamadoId, formData);
-    handleCloseModal();
   };
   
   const showToast = (message, type = "info") => {
@@ -72,8 +92,7 @@ const Chamados = () => {
     setCurrentPage(1);
   };
 
-  const onSubmitAtendimento = async (idChamado, data)=>{
-    if (!window.confirm("Tem certeza que deseja inserir o atendimento?")) return;
+  const onInsertAtendimento = async (idChamado, data)=>{
     setIsLoading(true);
     try {
       const response = await api.post(
@@ -98,6 +117,7 @@ const Chamados = () => {
         )
         })
       )
+      handleCloseAllModal()
       showToast("Atendimento registrado com sucesso", "success");
     } catch (error) {
       console.error(error);
@@ -108,7 +128,6 @@ const Chamados = () => {
   }
 
   const onFinalizarChamado = async (chamadoId) => {
-    if (!window.confirm("Tem certeza que deseja finalizar o chamado?")) return;
     setIsLoading(true);
     try {
       const response = await api.patch(
@@ -127,9 +146,62 @@ const Chamados = () => {
         )
         })
       )
+      handleCloseAllModal()
     } catch (error) {
       console.error(error);
       showToast("Aconteceu um erro ao tentar finalizar o chamado.", 'error');
+    }finally{
+      setIsLoading(false);
+    }
+  }
+
+  const onUpdateChamado = async (chamadoId, chamadoUpdate) => {
+    setIsLoading(true);
+    try {
+      const response = await api.patch(
+          `/chamados/${chamadoId}`,
+        chamadoUpdate);
+      showToast(`Chamado #${chamadoId} atualizado.`, "success")
+      setData(prevData => ({
+        ...prevData,
+        chamados: prevData.chamados.map(
+        chamado => chamado.id === chamadoId
+        ? {
+          ...chamado,
+          ...response.data
+        }
+        : chamado
+        )
+        })
+      )
+      handleCloseAllModal()
+      showToast(`Chamado #${chamadoId} atualizado`, 'success');
+    } catch (error) {
+      console.error(error);
+      showToast("Aconteceu um erro ao tentar atualizador o chamado.", 'error');
+    }finally{
+      setIsLoading(false);
+    }
+  }
+
+  const onExcluirChamado = async (chamadoId) => {
+    setIsLoading(true);
+    try {
+      const response = await api.delete(
+          `/chamados/${chamadoId}`);
+      showToast(`Chamado #${chamadoId} excluido.`, "success")
+      setData(prevData => ({
+        ...prevData,
+        chamados: prevData.chamados.filter(
+        chamado => chamado.id !== chamadoId
+        )
+        })
+      )
+      handleCloseAllModal()
+      await fetchChamados()
+    } catch (error) {
+      console.error(error);
+      showToast("Aconteceu um erro ao tentar excluir o chamado.", 'error');
     }finally{
       setIsLoading(false);
     }
@@ -147,7 +219,7 @@ const Chamados = () => {
 
   return (
     <div className="container mt-5">
-      <h2 className="mb-4 text-center">Meus Chamados</h2>
+      <h2 className="mb-4 text-center">Chamados</h2>
       <div className="row mb-4">
         <div className="col-12">
           <div className="input-group mb-3">
@@ -177,8 +249,22 @@ const Chamados = () => {
                 <ChamadoItem
                   key={chamado.id}
                   chamado={chamado}
-                  onAtender={handleAtender}
-                  handlerFinalizarChamado={onFinalizarChamado}
+                  handleEditarChamado={handlerOpenModalEditar}
+                  handleAtenderChamado={handleOpenModalAtender}
+                  handleFinalizarChamado={(chamadoId)=>{
+                    handleOpenConfModal(
+                      "Finalizar Chamado",
+                      `Deseja finalizar o chamado #${chamadoId}?`,
+                      ()=> onFinalizarChamado(chamadoId)
+                    )
+                  }}
+                  handleExcluirChamado={(chamadoId) => {
+                    handleOpenConfModal(
+                      "Excluir Chamado",
+                      `Deseja excluir o chamado #${chamadoId}?`,
+                      ()=> onExcluirChamado(chamadoId)
+                    )
+                  }}
                   isLoading = {isLoading}
                 />
               ))}
@@ -232,10 +318,32 @@ const Chamados = () => {
 
       {chamadoSelecionado && (
         <ModalAtendimento
-          show={modalAberto}
-          onClose={handleCloseModal}
-          onSubmit={handleSubmit}
+          show={modalAtendimentoAberto}
+          onClose={handleCloseAllModal}
+          onSubmit={(chamadoId, data) => {
+            handleOpenConfModal(
+              "Inserir atendimento",
+              "Deseja inserir o atendimento?",
+              ()=> {onInsertAtendimento(chamadoId, data)}
+            )
+          }}
           chamado={chamadoSelecionado}
+        />
+      )}
+      
+      {chamadoSelecionado && (
+        <ModalChamado
+          show={modalChamadoAberto}
+          onClose={handleCloseAllModal}
+          onSubmit={(chamadoId, chamadoUpdate) => {
+            handleOpenConfModal(
+              "Atualizar Chamado", 
+              "Deseja salvar as alterações feitas no chamado?", 
+              () => {onUpdateChamado(chamadoId, chamadoUpdate)})
+            }}
+          chamado={chamadoSelecionado}
+          handleShowToast = {showToast}
+          isLoading={isLoading}
         />
       )}
 
@@ -246,6 +354,15 @@ const Chamados = () => {
         onClose={() => setToast((prev) => ({ ...prev, show: false }))}
         position="bottom-end"
       />
+
+      <ModalConfimation
+        isOpen={ModalConfAberto}
+        title={modalConfData.title}
+        message={modalConfData.message}
+        onConfirm={modalConfData.onConfirm}
+        onCancel={()=>setModalConfAberto(false)}
+      />
+
     </div>
   );
 };
