@@ -1,6 +1,7 @@
 import { useState } from "react";
 import useAuth from '../hooks/useAuth'
 
+
 function ChamadoItem({ chamado,
   handleAtenderChamado = () => {} ,
   handleFinalizarChamado = () => {},
@@ -42,9 +43,15 @@ function ChamadoItem({ chamado,
             <strong>SOLICITANTE:</strong> {chamado.solicitante ? chamado.solicitante : "Desconhecido"}
           </div>
         </div>
-        <span className={`badge ${getStatusClass(chamado.status)} p-2`}>
-          {chamado.status}
-        </span>
+        <div className="d-flex gap-2">
+          <span className={`badge ${getStatusClass(chamado.status)} p-2`}>
+            {chamado.status}
+          </span>
+          <span className={`badge p-2 text-bg-${chamado.urgencia === 'Alta' ? 'danger' : (chamado.urgencia === 'Média' ? 'warning' : 'info')}`}>
+            <i className={`bi bi-exclamation-triangle-fill me-1`}></i>
+            {chamado.urgencia}
+          </span>
+        </div>
       </div>
 
       {/* Corpo Expansível */}
@@ -81,55 +88,62 @@ function ChamadoItem({ chamado,
             </div>
           )}
 
-          {/* Botão "Realizar Atendimento" abaixo da data de abertura, no canto direito,
-              exibido apenas se NÃO for 'Concluído' */}
+
           {(isAdmin || isSuporte) &&  (
             <>
               <div className="d-flex justify-content-end mt-2">
                 <button
                   type="button"
-                  className="btn btn-primary btn-sm mr-2"
+                  className="btn btn-sm btn-outline-primary"
                   disabled={isLoading}
+                  title="Editar"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleEditarChamado(chamado.id);
                   }}
-                >Editar</button>
+                >
+                  <i className="bi bi-pencil"></i>
+                </button>
                 {chamado.status !== "Concluído" && (
                   <>
                     <button
                       type="button"
-                      className="btn btn-secondary btn-sm mx-2"
+                      className="btn btn-sm btn-outline-secondary"
                       disabled={isLoading}
+                      title="Atender"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleAtenderChamado(chamado.id);
                       }}
                     >
-                      Realizar Atendimento
+                      <i className="bi bi-chat-dots"></i>
                     </button>
                     <button
                       type="button"
-                      className="btn btn-success btn-sm"
+                      className="btn btn-sm btn-outline-success"
                       disabled={isLoading}
+                      title="Finalizar"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleFinalizarChamado(chamado.id);
                       }}
                     >
-                      Finalizar Chamado
+                      <i className="bi bi-check-lg"></i>
                     </button>
                   </>
                 )}
                 <button
                   type="button"
-                  className="btn btn-danger btn-sm mx-2"
+                  className="btn btn-sm btn-outline-danger"
                   disabled={isLoading}
+                  title="Excluir"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleExcluirChamado(chamado.id);
                   }}
-                >Excluir</button>
+                >
+                  <i className="bi bi-trash"></i>
+                </button>
               </div>
             </>
           )}
