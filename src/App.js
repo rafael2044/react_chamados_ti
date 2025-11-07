@@ -3,7 +3,7 @@ import Navbar from "./components/Navbar";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ChamadoForm from "./pages/ChamadoForm";
-import Chamados from "./pages/Chamados";
+import ChamadosPage from "./pages/ChamadosPage";
 import PrivateRoute from "./PrivateRoute";
 import UnidadePage from "./pages/UnidadePage";
 import ModuloPage from "./pages/ModuloPage";
@@ -29,7 +29,7 @@ function App() {
                     path="/chamados"
                     element={
                         <PrivateRoute>
-                            <Chamados/>
+                            <ChamadosPage/>
                         </PrivateRoute>
                     }
                 />

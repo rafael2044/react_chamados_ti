@@ -7,8 +7,9 @@ import ModalChamado from "../components/ModalChamado";
 import ModalConfimation from "../components/ModalConfimation";
 
 const ITEMS_PER_PAGE = 5;
+const URGENCIAS_OPTIONS = ["", "Baixa", "Média", "Alta"];
 
-const Chamados = () => {
+const ChamadosPage = () => {
   const [data, setData] = useState({
     chamados: [],
     total: 0,
@@ -35,22 +36,70 @@ const Chamados = () => {
         type: "info",
       });
   
+
+  // --- NOVOS ESTADOS PARA FILTROS ---
+  const [filtroUnidade, setFiltroUnidade] = useState('');
+  const [filtroModulo, setFiltroModulo] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState('');
+  const [filtroUrgencia, setFiltroUrgencia] = useState('');
+
+  // --- NOVOS ESTADOS PARA ARMAZENAR OPÇÕES DOS FILTROS ---
+  const [unidades, setUnidades] = useState([]);
+  const [modulos, setModulos] = useState([]);
+  const [statusList, setStatusList] = useState([]);
+  
   const fetchChamados = async () => {
       try {
-        const res = await api.get(`/chamados/?offset=${currentPage}&limit=${ITEMS_PER_PAGE}&search=${search}`);
+        setLoading(true);
+        const params = new URLSearchParams({
+          offset: currentPage,
+          limit: ITEMS_PER_PAGE,
+          search: search
+        });
+
+        if (filtroUnidade) params.append('unidade_id', filtroUnidade)
+        if (filtroModulo) params.append('modulo_id', filtroModulo);
+        if (filtroStatus) params.append('status_id', filtroStatus)
+        if (filtroUrgencia) params.append('urgencia', filtroUrgencia)
+
+        const res = await api.get(`/chamados/?${params.toString()}`);
         setData(res.data);
-        setLoading(false);
       } catch (err) {
         console.error(err);
-        showToast("Erro ao carregar Chamados", 'error')
-        setLoading(false);
+        showToast("Aconteceu um erro ao carregar os chamados", 'error')
+      } finally {
+        setLoading(false)
       }
     };
-    
+
+  const fetchFilterData = async () => {
+    try {
+      setLoading(true);
+      const [resUnidades, resModulos, resStatus] = await Promise.all([
+        api.get('/unidade/'), // Presumindo que esta é a sua rota de unidades
+        api.get('/modulo/'),  // Presumindo que esta é a sua rota de módulos
+        api.get('/status/')    // Presumindo que esta é a sua rota de status
+      ]);
+      setUnidades(resUnidades.data || []); // Garante que é um array
+      setModulos(resModulos.data || []);
+      setStatusList(resStatus.data || []);
+    } catch (err) {
+      console.error("Erro ao carregar dados dos filtros", err);
+      showToast("Erro ao carregar opções de filtro", 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+  
+  useEffect(() => {
+    fetchFilterData();
+  }, []);
+
   useEffect(() => {
     fetchChamados();
-  }, [currentPage, search]);
+  }, [currentPage, search, filtroModulo, filtroUnidade, filtroStatus, filtroUrgencia]);
   
+
   const handleOpenModalAtender = (chamadoId) => {
     const chamado = data.chamados.find((c) => c.id === chamadoId);
     setChamadoSelecionado(chamado);
@@ -90,6 +139,11 @@ const Chamados = () => {
   const handleSearch = (e) => {
     setSearch(e.target.value);
     setCurrentPage(1);
+  };
+
+  const handleFilterChange = (setter) => (e) => {
+    setter(e.target.value);
+    setCurrentPage(1); // Reseta a página ao mudar qualquer filtro
   };
 
   const onInsertAtendimento = async (idChamado, data)=>{
@@ -207,7 +261,7 @@ const Chamados = () => {
     }
   }
 
-  if (loading) {
+  if (loading && data.chamados.length === 0) {
     return (
       <div className="d-flex justify-content-center py-5">
         <div className="spinner-border text-primary" role="status">
@@ -217,31 +271,101 @@ const Chamados = () => {
     );
   }
 
+  const isFiltered = search || filtroUnidade || filtroModulo || filtroStatus || filtroUrgencia;
+
   return (
     <div className="container mt-5">
-      <h2 className="mb-4 text-center">Chamados</h2>
-      <div className="row mb-4">
-        <div className="col-12">
-          <div className="input-group mb-3">
-            <span className="input-group-text">
-              <i className="bi bi-search"></i>
-            </span>
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Buscar chamados..."
-              value={search}
-              onChange={handleSearch}
-            />
+      <div className="card shadow-sm mb-4">
+        <div className="card-header bg-light py-3">
+              <h5 className="mb-0">
+                <i className="bi bi-filter me-2"></i>Filtros
+              </h5>
+        </div>
+        <div className="row mb-4 p-2">
+          <div className="col-12">
+            <div className="input-group mb-3">
+              <span className="input-group-text">
+                <i className="bi bi-search"></i>
+              </span>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Título do chamado..."
+                value={search}
+                onChange={handleSearch}
+              />
+            </div>
+          </div>
+          <div className="col-md-3">
+            <label htmlFor="filtroUnidade" className="form-label small">Unidade</label>
+            <select
+              id="filtroUnidade"
+              className="form-select form-select-sm"
+              value={filtroUnidade}
+              onChange={handleFilterChange(setFiltroUnidade)}
+            >
+              <option value="">Todas as Unidades</option>
+              {unidades.map(u => (
+                <option key={u.id} value={u.id}>{u.nome}</option>
+              ))}
+            </select>
+          </div>
+          <div className="col-md-3">
+            <label htmlFor="filtroModulo" className="form-label small">Módulo</label>
+            <select
+              id="filtroModulo"
+              className="form-select form-select-sm"
+              value={filtroModulo}
+              onChange={handleFilterChange(setFiltroModulo)}
+            >
+              <option value="">Todos os Módulos</option>
+              {modulos.map(m => (
+                <option key={m.id} value={m.id}>{m.nome}</option>
+              ))}
+            </select>
+          </div>
+          <div className="col-md-3">
+            <label htmlFor="filtroStatus" className="form-label small">Status</label>
+            <select
+              id="filtroStatus"
+              className="form-select form-select-sm"
+              value={filtroStatus}
+              onChange={handleFilterChange(setFiltroStatus)}
+            >
+              <option value="">Todos os Status</option>
+              {statusList.map(s => (
+                <option key={s.id} value={s.id}>{s.nome}</option>
+              ))}
+            </select>
+          </div>
+          <div className="col-md-3">
+            <label htmlFor="filtroUrgencia" className="form-label small">Urgência</label>
+            <select
+              id="filtroUrgencia"
+              className="form-select form-select-sm"
+              value={filtroUrgencia}
+              onChange={handleFilterChange(setFiltroUrgencia)}
+            >
+              {URGENCIAS_OPTIONS.map(u => (
+                <option key={u} value={u}>{u || 'Todas as Urgências'}</option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
-
+      <h2 className="h4 mb-4 text-dark">Lista de Chamados</h2>
       <div className="card">
         <div className="card-body p-0">
-          {data.chamados.length === 0 && !loading ? (
+          {loading && (
+             <div className="text-center py-5">
+                <div className="spinner-border spinner-border-sm text-primary" role="status">
+                  <span className="visually-hidden">Carregando...</span>
+                </div>
+              </div>
+          )}
+          {!loading && data.chamados.length === 0 ? (
             <div className="text-center py-5 text-muted">
-              {search ? 'Nenhum chamado encontrado' : 'Nenhum chamado cadastrado'}
+              {isFiltered ? 'Nenhum chamado encontrado com os filtros aplicados' : 'Nenhum chamado cadastrado'}
             </div>
           ) : (
             <ul className="list-group list-group-flush">
@@ -367,4 +491,4 @@ const Chamados = () => {
   );
 };
 
-export default Chamados;
+export default ChamadosPage;
