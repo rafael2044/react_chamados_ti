@@ -9,6 +9,49 @@ import ModalConfimation from "../components/ModalConfimation";
 const ITEMS_PER_PAGE = 5;
 const URGENCIAS_OPTIONS = ["", "Baixa", "Média", "Alta"];
 
+const getPaginationItems = (currentPage, totalPages, pageNeighbors = 5) => {
+  const totalNumbers = (pageNeighbors * 2) + 3;
+  const totalBlocks = totalNumbers + 2;
+
+  if (totalPages <= totalBlocks) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+
+  const startPage = Math.max(2, currentPage - pageNeighbors);
+  const endPage = Math.min(totalPages - 1, currentPage + pageNeighbors);
+  
+  let pages = [currentPage];
+
+  // Adiciona páginas vizinhas
+  for (let i = startPage; i <= endPage; i++) {
+    if (i !== currentPage) {
+      pages.push(i);
+    }
+  }
+  pages.sort((a, b) => a - b);
+
+  const hasLeftSpill = startPage > 2;
+  const hasRightSpill = (totalPages - endPage) > 1;
+
+  // Adiciona o início (1 e "...")
+  if (hasLeftSpill) {
+    pages.unshift("...");
+  }
+  if (!pages.includes(1)) {
+    pages.unshift(1);
+  }
+
+  // Adiciona o fim (totalPages e "...")
+  if (hasRightSpill) {
+    pages.push("...");
+  }
+  if (!pages.includes(totalPages)) {
+    pages.push(totalPages);
+  }
+
+  return pages;
+};
+
 const ChamadosPage = () => {
   const [data, setData] = useState({
     chamados: [],
@@ -133,6 +176,7 @@ const ChamadosPage = () => {
   };
 
   const handlePageChange = (page) => {
+    if(page < 1 || page > data.total_pages || page === currentPage) return;
     setCurrentPage(page);
   };
 
@@ -260,6 +304,8 @@ const ChamadosPage = () => {
       setIsLoading(false);
     }
   }
+
+  const paginationItems = getPaginationItems(currentPage, data.total_pages);
 
   if (loading && data.chamados.length === 0) {
     return (
@@ -400,23 +446,25 @@ const ChamadosPage = () => {
       {data.total_pages > 1 && (
         <nav aria-label="Paginação" className="mt-4">
           <ul className="pagination justify-content-center">
+            
             <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
               <button
                 className="page-link"
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
               >
-                Anterior
+                <i className="bi bi-chevron-left"></i>
               </button>
             </li>
-            {Array.from({ length: data.total_pages }, (_, i) => i + 1).map((page) => (
+
+            {paginationItems.map((page, index) => (
               <li
-                key={page}
-                className={`page-item ${currentPage === page ? 'active' : ''}`}
+                key={index}
+                className={`page-item ${currentPage === page ? 'active' : ''} ${page === "..." ? 'disabled' : ''}`}
               >
                 <button
                   className="page-link"
-                  onClick={() => handlePageChange(page)}
+                  onClick={() => typeof page === 'number' && handlePageChange(page)}
                 >
                   {page}
                 </button>
@@ -428,7 +476,7 @@ const ChamadosPage = () => {
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === data.total_pages}
               >
-                Próxima
+                <i className="bi bi-chevron-right"></i>
               </button>
             </li>
           </ul>
