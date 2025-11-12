@@ -4,7 +4,7 @@ import {
     PieChart, Pie, Cell, 
     XAxis, YAxis, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
-import api from "../services/api";
+import { api } from "../services/api";
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#FA8072'];
 

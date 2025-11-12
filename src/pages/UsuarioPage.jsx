@@ -1,16 +1,16 @@
 import {useEffect, useState} from "react";
-import api from "../services/api";
+import { getUsers, getPrivilegios, insertUser, deleteUser} from "../services/api";
 import ToastMessage from "../components/ToastMessage";
 import ModalConfimation from "../components/ModalConfimation";
+import {getPaginationItems, getTotalPages} from '../utils/utils'
 
 const ITEMS_PER_PAGE = 5;
 
 const UsuarioPage = () => {
     const [nome, setNome] = useState("")
     const [password, setPassword] = useState("");
-    const [privilegio, setPrivilegio] = useState(1);
-    const [privilegios, setPrivilegios] = useState([])
-    const [currentPage, setCurrentPage] = useState(1)
+    const [privilegio, setPrivilegio] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
     const [data, setData] = useState({
         users: [],
         total: 0,
@@ -18,9 +18,12 @@ const UsuarioPage = () => {
         limit: ITEMS_PER_PAGE,
         total_pages: 0
     })
+    const [privilegios, setPrivilegios] = useState(null);
+    const paginationItems = getPaginationItems(currentPage, data?.total_pages);
     const [search, setSearch] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [loading, setLoading] = useState(true)
+    const [loadingUsers, setLoadingUsers] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalData, setModalData] = useState({
         title: "",
@@ -33,68 +36,96 @@ const UsuarioPage = () => {
         type: "info",
     });
 
-    const handleOpenModalConf = (title, message, onConfirm) => {
-        setIsModalOpen(true)
-        setModalData({title, message, onConfirm});
-    }
-    
-    const showToast = (message, type = "info") => {
-        setToast({ show: true, message, type });
-    };
 
-    const fetchUsuarios = async () => {
-            try {
-                const res = await api.get(`/user/?offset=${currentPage}&limit=${ITEMS_PER_PAGE}&search=${search}`);
-                setData(res.data);
-                setLoading(false)
-            } catch (err) {
-                console.error(err);
-                setLoading(false)
-                showToast("Erro ao carregar usuários", "error")
-            }
-    };
+    const fetchUsers = async ()=>{
+        setLoadingUsers(true);
+        try {
+            const dataResp = await getUsers(currentPage, ITEMS_PER_PAGE, search)
+            setData(dataResp)
+        }catch(err){
+            showToast("Aconteceu um erro ao carregar os usuários", "error")
+            console.error(err)
+        }finally {
+            setLoadingUsers(false);
+        }
+    }
+
+
+    const fetchPrivilegios = async () => {
+        setLoading(true);
+        try {
+            const dataResp = await getPrivilegios();
+            setPrivilegios(dataResp);
+            if (dataResp?.length > 0) setPrivilegio(dataResp[0]?.id)
+        }catch(err){
+            showToast("Aconteceu um erro ao carregar os privilégios", "error")
+            console.error(err)
+        }finally {
+            setLoading(false);
+        }
+    }
+
+
+    useEffect(()=> {
+        fetchPrivilegios();
+    },[])
+
 
     useEffect(() => {
-        const fetchPrivilegios = async () => {
-            try {
-                const res = await api.get("/privilegio/");
-                setPrivilegios(res.data);
-            } catch (err) {
-                console.error(err);
-                showToast("Erro ao carregar privilégios", "error")
-            }
-        };
-        fetchPrivilegios();
-        fetchUsuarios();
+        fetchUsers();
     }, [currentPage, search]);
 
+ 
     const cadastrarUsuario = async (e) => {
         e.preventDefault();
         setIsLoading(true);
         try {
-            const response = await api.post("/user/", {username: nome, password, privilegio});
-            showToast("Usuário cadastrado com sucesso", "success")
+            const newUser = await insertUser({username: nome, password, privilegio});
             setNome('')
             setPassword('')
+            setPrivilegio(privilegios[0]?.id)
             setData(prevData => ({
                 ...prevData,
-                users: [...prevData.users, response.data]
+                total: prevData.total + 1,
+                total_pages: getTotalPages(prevData.total+1, ITEMS_PER_PAGE)
             }))
+            if (data.users.length < ITEMS_PER_PAGE) {
+                setData(prevData => ({
+                    ...prevData,
+                    users: [...prevData.users, newUser]
+                }))
+            }
+            showToast("Usuário cadastrado com sucesso", "success")
         } catch (error) {
             console.error(error);
-            showToast("Erro ao cadastrar usuário", "error")
-        }finally{
+            if (error.status === 409) {
+                showToast("Usuário já cadastrado", "warning") 
+            } else {
+                showToast("Aconteceu um erro ao cadastrar o usuário", "error")
+            }
+        } finally {
             setIsLoading(false);
         }
     };
 
+
     const excluirUsuario = async (id, username) => {
         setIsLoading(true);
         try {
-            await api.delete(`/user/${id}`);
-            await fetchUsuarios()
+            await deleteUser(id)
+            setData(prevData => ({
+                ...prevData,
+                users: prevData.users.filter(u => u.id !== id),
+                total: prevData.total - 1,
+                total_pages: getTotalPages(prevData.total-1, ITEMS_PER_PAGE)
+            }))
+            if (data.users.length <= ITEMS_PER_PAGE && data.total_pages > currentPage){
+                fetchUsers();
+            }
+            if (data.users.length <= 1 && data.total_pages > 1){
+                handlePageChange(currentPage - 1);
+            }
             showToast(`O usuário ${username} foi excluido.`, "success")
-            setIsModalOpen(false);
         } catch (error) {
             console.error("Erro ao tentar excluir usuário:", error);
             showToast("Erro ao tentar excluir usuário", "error")
@@ -102,27 +133,41 @@ const UsuarioPage = () => {
             setIsLoading(false);
             setIsModalOpen(false);
         }
+        
     };
+
+
+    const handleOpenModalConf = (title, message, onConfirm) => {
+        setIsModalOpen(true)
+        setModalData({title, message, onConfirm});
+    }
+    
+
+    const showToast = (message, type = "info") => {
+        setToast({ show: true, message, type });
+    };
+
+
+    const handleDeleteUser = (userId, userName) =>{
+        handleOpenModalConf(
+                            "Excluir Usuário",
+                            `Você deseja excluir o usuário ${userName}?`,
+                            () => excluirUsuario(userId, userName) 
+        );
+    } 
+
 
     const handlePageChange = (page) => {
     setCurrentPage(page);
     };
+
 
     const handleSearch = (e) => {
         setSearch(e.target.value);
         setCurrentPage(1);
     };
 
-    if (loading) {
-    return (
-      <div className="d-flex justify-content-center py-5">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Carregando...</span>
-        </div>
-      </div>
-    );
-    }
-
+    
     return (
         <div className="container mt-5">
             <div className="card shadow-sm p-4">
@@ -132,6 +177,8 @@ const UsuarioPage = () => {
                 <form className="row g-3 mb-4" onSubmit={cadastrarUsuario}>
                     <div className="col-md-4">
                         <input
+                            required
+                            disabled={isLoading}
                             type="text"
                             className="form-control"
                             placeholder="Nome do usuário"
@@ -141,6 +188,8 @@ const UsuarioPage = () => {
                     </div>
                     <div className="col-md-4">
                         <input
+                            required
+                            disabled={isLoading}
                             type="password"
                             className="form-control"
                             placeholder="Senha"
@@ -152,9 +201,10 @@ const UsuarioPage = () => {
                         <select
                             className="form-select"
                             value={privilegio}
+                            disabled={isLoading}
                             onChange={(e) => setPrivilegio(e.target.value)}
                         >
-                            {privilegios.map((p) => (
+                            {privilegios?.map((p) => (
                                 <option value={p.id} key={p.id}>{p.nome}</option>
                             ))}
                         </select>
@@ -179,7 +229,14 @@ const UsuarioPage = () => {
                 </div>
                 {/* Lista de unidades */}
                 <h5 className="mt-4 mb-3">Usuários cadastrados</h5>
-                {data.users.length === 0 ? (
+                {loadingUsers && (
+                    <div className="text-center p-auto">
+                        <div className="spinner-border spinner-border-sm text-primary" role="status">
+                        <span className="visually-hidden">Carregando...</span>
+                        </div>
+                    </div>
+                )}
+                {!loadingUsers && data?.users.length === 0 ? (
                     <p className="text-muted">Nenhum usuário cadastrado.</p>
                 ) : (
                     <div className="table-responsive">
@@ -193,22 +250,16 @@ const UsuarioPage = () => {
                             </tr>
                             </thead>
                             <tbody>
-                            {data.users.map((usuario) => (
-                                <tr key={usuario.id}>
-                                    <td>{usuario.id}</td>
-                                    <td>{usuario.username}</td>
-                                    <td>{usuario.privilegio.nome}</td>
+                            {data?.users.map((usuario) => (
+                                <tr key={usuario?.id}>
+                                    <td>{usuario?.id}</td>
+                                    <td>{usuario?.username}</td>
+                                    <td>{usuario?.privilegio.nome}</td>
                                     <td className="text-end">
                                         <button
                                             className="btn btn-sm btn-outline-danger"
                                             disabled={isLoading}
-                                            onClick={() => {
-                                                handleOpenModalConf(
-                                                    "Excluir Usuário",
-                                                    `Você deseja excluir o usuário ${usuario.username}?`,
-                                                    () => excluirUsuario(usuario.id, usuario.username) 
-                                                );
-                                            }}
+                                            onClick={()=>handleDeleteUser(usuario.id, usuario.username)}
                                         >
                                             Excluir
                                         </button>
@@ -219,38 +270,40 @@ const UsuarioPage = () => {
                         </table>
                     </div>
                 )}
-            {data.total_pages > 1 && (
+            {data?.total_pages > 1 && (
                 <nav aria-label="Paginação" className="mt-4">
                 <ul className="pagination justify-content-center">
+                    
                     <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
                     <button
                         className="page-link"
                         onClick={() => handlePageChange(currentPage - 1)}
                         disabled={currentPage === 1}
                     >
-                        Anterior
+                        <i className="bi bi-chevron-left"></i>
                     </button>
                     </li>
-                    {Array.from({ length: data.total_pages }, (_, i) => i + 1).map((page) => (
+
+                    {paginationItems.map((page, index) => (
                     <li
-                        key={page}
-                        className={`page-item ${currentPage === page ? 'active' : ''}`}
+                        key={index}
+                        className={`page-item ${currentPage === page ? 'active' : ''} ${page === "..." ? 'disabled' : ''}`}
                     >
                         <button
                         className="page-link"
-                        onClick={() => handlePageChange(page)}
+                        onClick={() => typeof page === 'number' && handlePageChange(page)}
                         >
                         {page}
                         </button>
                     </li>
                     ))}
-                    <li className={`page-item ${currentPage === data.total_pages ? 'disabled' : ''}`}>
+                    <li className={`page-item ${currentPage === data?.total_pages ? 'disabled' : ''}`}>
                     <button
                         className="page-link"
                         onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={currentPage === data.total_pages}
+                        disabled={currentPage === data?.total_pages}
                     >
-                        Próxima
+                        <i className="bi bi-chevron-right"></i>
                     </button>
                     </li>
                 </ul>
@@ -258,7 +311,7 @@ const UsuarioPage = () => {
             )}
 
             <div className="text-center mt-3 text-muted small">
-                Mostrando {data.users.length} de {data.total} chamados
+                Mostrando {data?.users.length} de {data?.total} Usuários
                 {search && ` (filtrados por: "${search}")`}
             </div>
             </div>
@@ -275,7 +328,7 @@ const UsuarioPage = () => {
             message={modalData.message}
             onConfirm={modalData.onConfirm}
             onCancel={()=> setIsModalOpen(false)}
-        />
+            />
         </div>
     );
 };

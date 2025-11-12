@@ -1,6 +1,8 @@
 import {useEffect, useState, useRef} from "react";
-import api from "../services/api";
+import { getUnidades, getModulos, insertChamado, insertAnexoChamado } from "../services/api";
 import ToastMessage from "../components/ToastMessage";
+import ModalConfimation from "../components/ModalConfimation";
+
 const ChamadoForm = () => {
   const [titulo, setTitulo] = useState("");
   const [unidade, setUnidade] = useState(null);
@@ -14,6 +16,12 @@ const ChamadoForm = () => {
   const [loading, setLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalData, setModalData] = useState({
+    title: "",
+    message: "",
+    onConfirm: ()=>{}
+  });
 
   const [toast, setToast] = useState({
       show: false,
@@ -21,36 +29,39 @@ const ChamadoForm = () => {
       type: "info",
   });
 
-
-  useEffect(() => {
-    const fetchUnidades = async () => {
-      try {
-          const res = await api.get("/unidade/");
-          setUnidades(res.data);
-          if (res.data.length > 0){
-            setUnidade(res.data[0].id)
-          }
-          setLoading(false);
-        } catch (err) {
-          console.error(err);
-          showToast("Erro ao carregar unidades", "error")
-          setLoading(false);
+  const fetchUnidades = async () => {
+    setLoading(true);
+    try {
+        const dataResp = await getUnidades();
+        setUnidades(dataResp.unidades);
+        if (dataResp.unidades.length > 0){
+          setUnidade(dataResp.unidades[0]?.id)
         }
-    };
-    const fetchModulos = async () => {
-      try {
-        const res = await api.get("/modulo/");
-        setModulos(res.data);
-        if (res.data.length > 0){
-          setModulo(res.data[0].id)
-        }
-        setLoading(false);
       } catch (err) {
         console.error(err);
+        showToast("Erro ao carregar unidades", "error")
+      } finally {
         setLoading(false);
-        showToast("Erro ao carregar modulos", "error")
       }
-    };
+  };
+
+  const fetchModulos = async () => {
+    setLoading(true);
+    try {
+      const dataResp = await getModulos();
+      setModulos(dataResp.modulos);
+      if (dataResp.modulos.length > 0){
+        setModulo(dataResp.modulos[0]?.id)
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Erro ao carregar modulos", "error")
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchUnidades();
     fetchModulos();
   }, []);
@@ -61,14 +72,9 @@ const ChamadoForm = () => {
   };
 
   async function enviarAnexo(chamadoId, arquivo) {
-      const formData = new FormData();
-      formData.append("file", arquivo);
       try {
-          const response = await api.post(`/chamados/${chamadoId}/anexo`, formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-          showToast(response.data.message);
-
+          const dataResp = await insertAnexoChamado(chamadoId, arquivo)
+          showToast(dataResp.message);
       } catch (err) {
           console.error(err);
           showToast(`Erro ao enviar anexo do chamado #${chamadoId}`, "error");
@@ -76,18 +82,19 @@ const ChamadoForm = () => {
   }
 
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const cadastrarChamado = async () => {
     setIsLoading(true)
     try {
-        const response = await api.post("/chamados/",
-          {titulo, unidade, setor, modulo, urgencia, descricao}
-        );
-        const chamado_id = await response.data.chamado_id
+        const respData = await insertChamado(
+          {titulo, unidade, setor, modulo, urgencia, descricao});
+        
+        const chamado_id = await respData.chamado_id
+        
         if (anexo){
-          await enviarAnexo(chamado_id, anexo)
+          await enviarAnexo(chamado_id, anexo);
         }
-        showToast(response.data.message, 'success')
+
+        showToast(respData.message, 'success')
         setTitulo("")
         setUnidade(unidades[0].id)
         setSetor("")
@@ -102,8 +109,23 @@ const ChamadoForm = () => {
       showToast("Erro ao enviar chamado", "error")
     } finally{
       setIsLoading(false);
+      setIsModalOpen(false);
     }
   };
+
+  const handleCadastrarChamado = (e) => {
+    e.preventDefault();
+    handleOpenModalConf(
+                        "Abrir novo Chamado",
+                        `Deseja abrir o chamado?`,
+                        () => cadastrarChamado()
+    );
+  }
+
+  const handleOpenModalConf = (title, message, onConfirm) => {
+        setIsModalOpen(true)
+        setModalData({title, message, onConfirm});
+  }
 
   if (loading) {
   return (
@@ -122,7 +144,7 @@ const ChamadoForm = () => {
           <div className="card shadow-sm">
             <div className="card-body">
               <h3 className="card-title mb-4 text-center">Abrir Chamado</h3>
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleCadastrarChamado}>
                 <div className="mb-3">
                   <label className="form-label">Título</label>
                   <input type="text" name="titulo" value={titulo} onChange={(e)=>setTitulo(e.target.value)} className="form-control" required />
@@ -190,6 +212,14 @@ const ChamadoForm = () => {
       type={toast.type}
       onClose={() => setToast((prev) => ({ ...prev, show: false }))}
       position="bottom-end" // ou top-end, bottom-start, etc.
+      />
+      
+      <ModalConfimation
+      isOpen={isModalOpen}
+      title={modalData.title}
+      message={modalData.message}
+      onConfirm={modalData.onConfirm}
+      onCancel={()=> setIsModalOpen(false)}
       />
     </div>
   );

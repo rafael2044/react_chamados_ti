@@ -1,5 +1,5 @@
 import { useState, useEffect} from "react";
-import api from "../services/api";
+import {getUnidades, getModulos} from "../services/api";
 
 function ModalChamado({ show, onClose, onSubmit, chamado, handleShowToast, isLoading=false }) {
   const [titulo, setTitulo] = useState(chamado.titulo);
@@ -14,13 +14,14 @@ function ModalChamado({ show, onClose, onSubmit, chamado, handleShowToast, isLoa
 
   useEffect(() => {
     const fetchUnidades = async () => {
+      setLoading(true);
       try {
-          const res = await api.get("/unidade/");
-          setUnidades(res.data);
+          const dataResp = await getUnidades();
+          setUnidades(dataResp.unidades);
           if (chamado.unidade){
-            setUnidade(res.data.find(u => u.nome === chamado.unidade)?.id)
-          }else if (res.data.length > 0){
-            setUnidade(res.data[0].id)
+            setUnidade(dataResp.unidades.find(u => u.nome === chamado.unidade)?.id)
+          }else if (dataResp.unidades.length > 0){
+            setUnidade(dataResp.unidades[0].id)
           }
           setLoading(false);
         } catch (err) {
@@ -30,15 +31,15 @@ function ModalChamado({ show, onClose, onSubmit, chamado, handleShowToast, isLoa
         }
     };
     const fetchModulos = async () => {
+      setLoading(true);
       try {
-        const res = await api.get("/modulo/");
-        setModulos(res.data);
+        const dataResp = await getModulos();
+        setModulos(dataResp.modulos);
         if (chamado.modulo){
-          setModulo(res.data.find(m => m.nome === chamado.modulo)?.id)
-        }else if (res.data.length > 0){
-          setModulo(res.data[0].id)
+          setModulo(dataResp.modulos.find(m => m.nome === chamado.modulo)?.id)
+        }else if (dataResp.modulos.length > 0){
+          setModulo(dataResp.modulos[0].id)
         }
-        setLoading(false);
       } catch (err) {
         console.error(err);
         setLoading(false);

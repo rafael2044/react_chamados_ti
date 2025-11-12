@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import api from "../services/api";
+import { api } from "../services/api";
 import ToastMessage from "../components/ToastMessage";
 import logo from "../assets/Logo.png"
 

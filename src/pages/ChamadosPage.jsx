@@ -1,56 +1,16 @@
 import { useEffect, useState } from "react";
-import api from "../services/api";
+import { getChamados, getUnidades, getModulos,
+  getStatus, insertAtendimento, finalizarChamado,
+  updateChamado, deleteChamado } from "../services/api";
 import ToastMessage from "../components/ToastMessage";
 import ChamadoItem from "../components/ChamadoItem";
 import ModalAtendimento from "../components/ModalAtendimento";
 import ModalChamado from "../components/ModalChamado";
 import ModalConfimation from "../components/ModalConfimation";
+import {getPaginationItems, getTotalPages} from '../utils/utils'
 
 const ITEMS_PER_PAGE = 5;
 const URGENCIAS_OPTIONS = ["", "Baixa", "Média", "Alta"];
-
-const getPaginationItems = (currentPage, totalPages, pageNeighbors = 5) => {
-  const totalNumbers = (pageNeighbors * 2) + 3;
-  const totalBlocks = totalNumbers + 2;
-
-  if (totalPages <= totalBlocks) {
-    return Array.from({ length: totalPages }, (_, i) => i + 1);
-  }
-
-  const startPage = Math.max(2, currentPage - pageNeighbors);
-  const endPage = Math.min(totalPages - 1, currentPage + pageNeighbors);
-  
-  let pages = [currentPage];
-
-  // Adiciona páginas vizinhas
-  for (let i = startPage; i <= endPage; i++) {
-    if (i !== currentPage) {
-      pages.push(i);
-    }
-  }
-  pages.sort((a, b) => a - b);
-
-  const hasLeftSpill = startPage > 2;
-  const hasRightSpill = (totalPages - endPage) > 1;
-
-  // Adiciona o início (1 e "...")
-  if (hasLeftSpill) {
-    pages.unshift("...");
-  }
-  if (!pages.includes(1)) {
-    pages.unshift(1);
-  }
-
-  // Adiciona o fim (totalPages e "...")
-  if (hasRightSpill) {
-    pages.push("...");
-  }
-  if (!pages.includes(totalPages)) {
-    pages.push(totalPages);
-  }
-
-  return pages;
-};
 
 const ChamadosPage = () => {
   const [data, setData] = useState({
@@ -68,6 +28,7 @@ const ChamadosPage = () => {
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingChamados, setLoadingChamados] = useState(true);
   const [modalConfData, setModalConfData] = useState({
     title: "",
     message: "",
@@ -77,8 +38,8 @@ const ChamadosPage = () => {
         show: false,
         message: "",
         type: "info",
-      });
-  
+  });
+  const paginationItems = getPaginationItems(currentPage, data.total_pages);
 
   // --- NOVOS ESTADOS PARA FILTROS ---
   const [filtroUnidade, setFiltroUnidade] = useState('');
@@ -92,8 +53,8 @@ const ChamadosPage = () => {
   const [statusList, setStatusList] = useState([]);
   
   const fetchChamados = async () => {
+    setLoadingChamados(true);
       try {
-        setLoading(true);
         const params = new URLSearchParams({
           offset: currentPage,
           limit: ITEMS_PER_PAGE,
@@ -105,27 +66,27 @@ const ChamadosPage = () => {
         if (filtroStatus) params.append('status_id', filtroStatus)
         if (filtroUrgencia) params.append('urgencia', filtroUrgencia)
 
-        const res = await api.get(`/chamados/?${params.toString()}`);
-        setData(res.data);
+        const dataResp = await getChamados(params)
+        setData(dataResp);
       } catch (err) {
         console.error(err);
         showToast("Aconteceu um erro ao carregar os chamados", 'error')
       } finally {
-        setLoading(false)
+        setLoadingChamados(false);
       }
     };
 
   const fetchFilterData = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const [resUnidades, resModulos, resStatus] = await Promise.all([
-        api.get('/unidade/'), // Presumindo que esta é a sua rota de unidades
-        api.get('/modulo/'),  // Presumindo que esta é a sua rota de módulos
-        api.get('/status/')    // Presumindo que esta é a sua rota de status
-      ]);
-      setUnidades(resUnidades.data || []); // Garante que é um array
-      setModulos(resModulos.data || []);
-      setStatusList(resStatus.data || []);
+      const dataUnidades = await getUnidades();
+      const dataModulos = await getModulos();
+      const dataStatus = await getStatus();
+
+      setUnidades(dataUnidades.unidades || []); // Garante que é um array
+      setModulos(dataModulos.modulos || []);
+      setStatusList(dataStatus || []);
+
     } catch (err) {
       console.error("Erro ao carregar dados dos filtros", err);
       showToast("Erro ao carregar opções de filtro", 'error');
@@ -142,6 +103,118 @@ const ChamadosPage = () => {
     fetchChamados();
   }, [currentPage, search, filtroModulo, filtroUnidade, filtroStatus, filtroUrgencia]);
   
+
+  const onInsertAtendimento = async (chamadoId, data)=>{
+    setIsLoading(true);
+    try {
+      const newAtendimento = await insertAtendimento(chamadoId, data)
+      setData(prevData => ({
+        ...prevData,
+        chamados: prevData.chamados.map(
+          chamado => chamado.id === chamadoId
+          ?
+          { 
+            ...chamado, 
+            status: 'Em andamento', 
+            atendimentos: [...chamado.atendimentos, newAtendimento] 
+          }
+          : chamado
+        )
+        })
+      )
+      showToast("Atendimento registrado com sucesso", "success");
+    } catch (error) {
+      console.error(error);
+      showToast("Erro ao registrar atendimento", "error")
+    }finally{
+      setIsLoading(false);
+      handleCloseAllModal();
+    }
+  }
+
+  const onFinalizarChamado = async (chamadoId) => {
+    setIsLoading(true);
+    try {
+      const dataResp = await finalizarChamado(chamadoId);
+      showToast(`Chamado #${chamadoId} finalizado.`, "success")
+      setData(prevData => ({
+        ...prevData,
+        chamados: prevData.chamados.map(
+        chamado => chamado.id === chamadoId
+        ? {
+          ...chamado,
+          status: 'Concluído',
+          data_fechamento: dataResp.data_fechamento
+        }
+        : chamado
+        )
+        })
+      )
+    } catch (error) {
+      console.error(error);
+      showToast("Aconteceu um erro ao tentar finalizar o chamado.", 'error');
+    }finally{
+      setIsLoading(false);
+      handleCloseAllModal()
+    }
+  }
+
+  const onUpdateChamado = async (chamadoId, chamadoUpdate) => {
+    setIsLoading(true);
+    try {
+      const dataResp = await updateChamado(chamadoId, chamadoUpdate)
+      showToast(`Chamado #${chamadoId} atualizado.`, "success")
+      setData(prevData => ({
+        ...prevData,
+        chamados: prevData.chamados.map(
+        chamado => chamado.id === chamadoId
+        ? {
+          ...chamado,
+          ...dataResp
+        }
+        : chamado
+        )
+        })
+      )
+      showToast(`Chamado #${chamadoId} atualizado`, 'success');
+    } catch (error) {
+      console.error(error);
+      showToast("Aconteceu um erro ao tentar atualizador o chamado.", 'error');
+    }finally{
+      setIsLoading(false);
+      handleCloseAllModal()
+    }
+  }
+
+  const onExcluirChamado = async (chamadoId) => {
+    setIsLoading(true);
+    try {
+      await deleteChamado(chamadoId);
+      showToast(`Chamado #${chamadoId} excluido.`, "success")
+      setData(prevData => ({
+        ...prevData,
+        chamados: prevData.chamados.filter(
+          chamado => chamado.id !== chamadoId
+          ),
+        total: prevData.total - 1,
+        total_pages: getTotalPages(prevData.total - 1, ITEMS_PER_PAGE)
+        })
+      )
+      if (data.chamados.length <= ITEMS_PER_PAGE && data.total_pages > currentPage){
+        fetchChamados();
+      }
+      if (data.chamados.length <= 1 && data.total_pages > 1){
+          handlePageChange(currentPage - 1);
+      }
+
+    } catch (error) {
+      console.error(error);
+      showToast("Aconteceu um erro ao tentar excluir o chamado.", 'error');
+    }finally{
+      setIsLoading(false);
+      handleCloseAllModal()
+    }
+  }
 
   const handleOpenModalAtender = (chamadoId) => {
     const chamado = data.chamados.find((c) => c.id === chamadoId);
@@ -190,122 +263,6 @@ const ChamadosPage = () => {
     setCurrentPage(1); // Reseta a página ao mudar qualquer filtro
   };
 
-  const onInsertAtendimento = async (idChamado, data)=>{
-    setIsLoading(true);
-    try {
-      const response = await api.post(
-        `/atendimento/${idChamado}`,
-        data,
-        {
-            headers: { "Content-Type": "multipart/form-data" },
-        }
-      );
-      const new_atendimento = await response.data
-      setData(prevData => ({
-        ...prevData,
-        chamados: prevData.chamados.map(
-          chamado => chamado.id === idChamado
-          ? 
-          { 
-            ...chamado, 
-            status: 'Em andamento', 
-            atendimentos: [...chamado.atendimentos, new_atendimento] 
-          }
-          : chamado
-        )
-        })
-      )
-      handleCloseAllModal()
-      showToast("Atendimento registrado com sucesso", "success");
-    } catch (error) {
-      console.error(error);
-      showToast("Erro ao registrar atendimento", "error")
-    }finally{
-      setIsLoading(false);
-    }
-  }
-
-  const onFinalizarChamado = async (chamadoId) => {
-    setIsLoading(true);
-    try {
-      const response = await api.patch(
-          `/chamados/${chamadoId}/finalizar`);
-      showToast(`Chamado #${chamadoId} finalizado.`, "success")
-      setData(prevData => ({
-        ...prevData,
-        chamados: prevData.chamados.map(
-        chamado => chamado.id === chamadoId
-        ? {
-          ...chamado,
-          status: 'Concluído',
-          data_fechamento: response.data.data_fechamento
-        }
-        : chamado
-        )
-        })
-      )
-      handleCloseAllModal()
-    } catch (error) {
-      console.error(error);
-      showToast("Aconteceu um erro ao tentar finalizar o chamado.", 'error');
-    }finally{
-      setIsLoading(false);
-    }
-  }
-
-  const onUpdateChamado = async (chamadoId, chamadoUpdate) => {
-    setIsLoading(true);
-    try {
-      const response = await api.patch(
-          `/chamados/${chamadoId}`,
-        chamadoUpdate);
-      showToast(`Chamado #${chamadoId} atualizado.`, "success")
-      setData(prevData => ({
-        ...prevData,
-        chamados: prevData.chamados.map(
-        chamado => chamado.id === chamadoId
-        ? {
-          ...chamado,
-          ...response.data
-        }
-        : chamado
-        )
-        })
-      )
-      handleCloseAllModal()
-      showToast(`Chamado #${chamadoId} atualizado`, 'success');
-    } catch (error) {
-      console.error(error);
-      showToast("Aconteceu um erro ao tentar atualizador o chamado.", 'error');
-    }finally{
-      setIsLoading(false);
-    }
-  }
-
-  const onExcluirChamado = async (chamadoId) => {
-    setIsLoading(true);
-    try {
-      const response = await api.delete(
-          `/chamados/${chamadoId}`);
-      showToast(`Chamado #${chamadoId} excluido.`, "success")
-      setData(prevData => ({
-        ...prevData,
-        chamados: prevData.chamados.filter(
-        chamado => chamado.id !== chamadoId
-        )
-        })
-      )
-      handleCloseAllModal()
-      await fetchChamados()
-    } catch (error) {
-      console.error(error);
-      showToast("Aconteceu um erro ao tentar excluir o chamado.", 'error');
-    }finally{
-      setIsLoading(false);
-    }
-  }
-
-  const paginationItems = getPaginationItems(currentPage, data.total_pages);
 
   if (loading && data.chamados.length === 0) {
     return (
@@ -320,7 +277,8 @@ const ChamadosPage = () => {
   const isFiltered = search || filtroUnidade || filtroModulo || filtroStatus || filtroUrgencia;
 
   return (
-    <div className="container mt-5">
+    <div className="container mt-2">
+      {/* FILTRO */}
       <div className="card shadow-sm mb-4">
         <div className="card-header bg-light py-3">
               <h5 className="mb-0">
@@ -333,6 +291,7 @@ const ChamadosPage = () => {
               <span className="input-group-text">
                 <i className="bi bi-search"></i>
               </span>
+              {/* FILTRO POR TÌTULO DO CHAMADO*/}
               <input
                 type="text"
                 className="form-control"
@@ -342,6 +301,7 @@ const ChamadosPage = () => {
               />
             </div>
           </div>
+          {/* FILTRO POR UNIDADE*/}
           <div className="col-md-3">
             <label htmlFor="filtroUnidade" className="form-label small">Unidade</label>
             <select
@@ -356,6 +316,7 @@ const ChamadosPage = () => {
               ))}
             </select>
           </div>
+          {/* FILTRO POR MODULO*/}
           <div className="col-md-3">
             <label htmlFor="filtroModulo" className="form-label small">Módulo</label>
             <select
@@ -370,6 +331,7 @@ const ChamadosPage = () => {
               ))}
             </select>
           </div>
+          {/* FILTRO POR STATUS*/}
           <div className="col-md-3">
             <label htmlFor="filtroStatus" className="form-label small">Status</label>
             <select
@@ -384,6 +346,7 @@ const ChamadosPage = () => {
               ))}
             </select>
           </div>
+          {/* FILTRO POR URGÊNCIA*/}
           <div className="col-md-3">
             <label htmlFor="filtroUrgencia" className="form-label small">Urgência</label>
             <select
@@ -399,17 +362,11 @@ const ChamadosPage = () => {
           </div>
         </div>
       </div>
-      <h2 className="h4 mb-4 text-dark">Lista de Chamados</h2>
-      <div className="card">
+      {/*EXIBIÇÃO DOS CHAMADOS*/}
+      <h2 className="h4 mb-3 text-dark">Lista de Chamados</h2>
+      <div className="card mb-4">
         <div className="card-body p-0">
-          {loading && (
-             <div className="text-center py-5">
-                <div className="spinner-border spinner-border-sm text-primary" role="status">
-                  <span className="visually-hidden">Carregando...</span>
-                </div>
-              </div>
-          )}
-          {!loading && data.chamados.length === 0 ? (
+          {!loadingChamados && data.chamados.length === 0 ? (
             <div className="text-center py-5 text-muted">
               {isFiltered ? 'Nenhum chamado encontrado com os filtros aplicados' : 'Nenhum chamado cadastrado'}
             </div>
@@ -441,7 +398,15 @@ const ChamadosPage = () => {
             </ul>
           )}
         </div>
+        {loadingChamados && (
+          <div className="text-center p-0 m-0">
+              <div className="spinner-border spinner-border-sm text-primary" role="status">
+                <span className="visually-hidden">Carregando...</span>
+              </div>
+          </div>
+        )}
       </div>
+      
 
       {data.total_pages > 1 && (
         <nav aria-label="Paginação" className="mt-4">
@@ -483,7 +448,7 @@ const ChamadosPage = () => {
         </nav>
       )}
 
-      <div className="text-center mt-3 text-muted small">
+      <div className="text-center mt-1 text-muted small">
         Mostrando {data.chamados.length} de {data.total} chamados
         {search && ` (filtrados por: "${search}")`}
       </div>
