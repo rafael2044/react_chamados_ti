@@ -1,4 +1,3 @@
-
 const getPaginationItems = (currentPage, totalPages, pageNeighbors = 5) => {
   const totalNumbers = (pageNeighbors * 2) + 3;
   const totalBlocks = totalNumbers + 2;
