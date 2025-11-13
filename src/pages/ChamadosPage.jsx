@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getChamados, getUnidades, getModulos,
   getStatus, insertAtendimento, finalizarChamado,
   updateChamado, deleteChamado } from "../services/api";
@@ -52,7 +52,7 @@ const ChamadosPage = () => {
   const [modulos, setModulos] = useState([]);
   const [statusList, setStatusList] = useState([]);
   
-  const fetchChamados = async () => {
+  const fetchChamados = useCallback(async () => {
     setLoadingChamados(true);
       try {
         const params = new URLSearchParams({
@@ -74,34 +74,34 @@ const ChamadosPage = () => {
       } finally {
         setLoadingChamados(false);
       }
-    };
+    }, [currentPage, search, filtroModulo, filtroUnidade, filtroStatus, filtroUrgencia])
 
-  const fetchFilterData = async () => {
-    setLoading(true);
-    try {
-      const dataUnidades = await getUnidades();
-      const dataModulos = await getModulos();
-      const dataStatus = await getStatus();
-
-      setUnidades(dataUnidades.unidades || []); // Garante que é um array
-      setModulos(dataModulos.modulos || []);
-      setStatusList(dataStatus || []);
-
-    } catch (err) {
-      console.error("Erro ao carregar dados dos filtros", err);
-      showToast("Erro ao carregar opções de filtro", 'error');
-    } finally {
-      setLoading(false);
-    }
-  }
-  
+    
   useEffect(() => {
+    const fetchFilterData = async () => {
+      setLoading(true);
+      try {
+        const dataUnidades = await getUnidades();
+        const dataModulos = await getModulos();
+        const dataStatus = await getStatus();
+  
+        setUnidades(dataUnidades.unidades || []); // Garante que é um array
+        setModulos(dataModulos.modulos || []);
+        setStatusList(dataStatus || []);
+  
+      } catch (err) {
+        console.error("Erro ao carregar dados dos filtros", err);
+        showToast("Erro ao carregar opções de filtro", 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
     fetchFilterData();
-  }, []);
+  }, [currentPage]);
 
   useEffect(() => {
     fetchChamados();
-  }, [currentPage, search, filtroModulo, filtroUnidade, filtroStatus, filtroUrgencia]);
+  }, [currentPage, search, filtroModulo, filtroUnidade, filtroStatus, filtroUrgencia, fetchChamados]);
   
 
   const onInsertAtendimento = async (chamadoId, data)=>{
