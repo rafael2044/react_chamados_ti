@@ -48,7 +48,7 @@ function ModalChamado({ show, onClose, onSubmit, chamado, handleShowToast, isLoa
     };
     fetchUnidades();
     fetchModulos();
-  }, []);
+  }, [chamado.unidade, chamado.modulo, handleShowToast]);
   
   const handleSubmit = (e) => {
     e.preventDefault();

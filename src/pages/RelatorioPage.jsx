@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
     BarChart, Bar, 
     PieChart, Pie, Cell, 
@@ -34,15 +34,15 @@ export default function RelatorioPage() {
     // Funções de Fetch de Dados
     // ==============================================================
 
-    const buildUrlParams = () => {
+    const buildUrlParams = useCallback(() => {
         const params = new URLSearchParams();
         if (dataInicio) params.append('data_inicio', dataInicio);
         if (dataFim) params.append('data_fim', dataFim);
         return params.toString();
-    };
+    },[dataInicio, dataFim]);
 
     // Fetch Gráfico 1
-    const fetchModuloData = async (isFilterRequest = false) => {
+    const fetchModuloData = useCallback(async (isFilterRequest = false) => {
         if (!isFilterRequest) setIsModuloLoading(true);
         try {
             const params = buildUrlParams();
@@ -54,10 +54,10 @@ export default function RelatorioPage() {
         } finally {
             if (!isFilterRequest) setIsModuloLoading(false);
         }
-    };
+    },[buildUrlParams]);
 
     // Fetch Gráfico 2
-    const fetchTmrData = async (isFilterRequest = false) => {
+    const fetchTmrData = useCallback (async (isFilterRequest = false) => {
         if (!isFilterRequest) setIsTmrLoading(true);
         try {
             const params = buildUrlParams();
@@ -68,10 +68,10 @@ export default function RelatorioPage() {
         } finally {
             if (!isFilterRequest) setIsTmrLoading(false);
         }
-    };
+    },[buildUrlParams]);
 
     // Fetch Gráfico 3
-    const fetchStatusData = async (isFilterRequest = false) => {
+    const fetchStatusData = useCallback(async (isFilterRequest = false) => {
         if (!isFilterRequest) setIsStatusLoading(true);
         try {
             const params = buildUrlParams();
@@ -82,10 +82,10 @@ export default function RelatorioPage() {
         } finally {
             if (!isFilterRequest) setIsStatusLoading(false);
         }
-    };
+    },[buildUrlParams]);
 
     // Fetch Gráfico 4
-    const fetchUnidadeData = async (isFilterRequest = false) => {
+    const fetchUnidadeData = useCallback(async (isFilterRequest = false) => {
         if (!isFilterRequest) setIsUnidadeLoading(true);
         try {
             const params = buildUrlParams();
@@ -96,7 +96,7 @@ export default function RelatorioPage() {
         } finally {
             if (!isFilterRequest) setIsUnidadeLoading(false);
         }
-    };
+    }, [buildUrlParams]);
 
     // ==============================================================
     // Handlers e Effects
@@ -108,7 +108,7 @@ export default function RelatorioPage() {
         fetchTmrData(false);
         fetchStatusData(false);
         fetchUnidadeData(false);
-    }, []); // O array vazio [] garante que isso rode apenas UMA vez no mount
+    }, [fetchModuloData, fetchTmrData, fetchStatusData, fetchUnidadeData]); // O array vazio [] garante que isso rode apenas UMA vez no mount
 
     // Handler do botão "Filtrar"
     const handleFilterSubmit = async (e) => {

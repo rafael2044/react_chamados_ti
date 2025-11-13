@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import { getModulos, insertModulo, deleteModulo } from "../services/api";
 import ToastMessage from "../components/ToastMessage";
 import {getPaginationItems, getTotalPages} from '../utils/utils'
@@ -32,7 +32,7 @@ const ModuloPage = () => {
     });
     const paginationItems = getPaginationItems(currentPage, data.total_pages);
 
-    const fetchModulos = async () => {
+    const fetchModulos = useCallback(async () => {
         setLoading(true)
         try {
             const dataResp = await getModulos(currentPage, ITEMS_PER_PAGE)
@@ -43,12 +43,12 @@ const ModuloPage = () => {
         } finally {
             setLoading(false)
         }
-    };
+    }, [currentPage]);
 
 
     useEffect(() => {
         fetchModulos();
-    }, [currentPage]);
+    }, [currentPage, fetchModulos]);
 
     
     const cadastrarModulo = async (e) => {

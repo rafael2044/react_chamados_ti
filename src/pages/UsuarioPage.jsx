@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useEffect, useState, useCallback} from "react";
 import { getUsers, getPrivilegios, insertUser, deleteUser} from "../services/api";
 import ToastMessage from "../components/ToastMessage";
 import ModalConfimation from "../components/ModalConfimation";
@@ -37,7 +37,7 @@ const UsuarioPage = () => {
     });
 
 
-    const fetchUsers = async ()=>{
+    const fetchUsers = useCallback(async ()=>{
         setLoadingUsers(true);
         try {
             const dataResp = await getUsers(currentPage, ITEMS_PER_PAGE, search)
@@ -48,32 +48,32 @@ const UsuarioPage = () => {
         }finally {
             setLoadingUsers(false);
         }
-    }
+    }, [currentPage, search]);
 
 
-    const fetchPrivilegios = async () => {
-        setLoading(true);
-        try {
-            const dataResp = await getPrivilegios();
-            setPrivilegios(dataResp);
-            if (dataResp?.length > 0) setPrivilegio(dataResp[0]?.id)
-        }catch(err){
-            showToast("Aconteceu um erro ao carregar os privilégios", "error")
-            console.error(err)
-        }finally {
-            setLoading(false);
-        }
-    }
-
-
+    
+    
     useEffect(()=> {
+        const fetchPrivilegios = async () => {
+            setLoading(true);
+            try {
+                const dataResp = await getPrivilegios();
+                setPrivilegios(dataResp);
+                if (dataResp?.length > 0) setPrivilegio(dataResp[0]?.id)
+            }catch(err){
+                showToast("Aconteceu um erro ao carregar os privilégios", "error")
+                console.error(err)
+            }finally {
+                setLoading(false);
+            }
+        }
         fetchPrivilegios();
     },[])
 
 
     useEffect(() => {
         fetchUsers();
-    }, [currentPage, search]);
+    }, [currentPage, search, fetchUsers]);
 
  
     const cadastrarUsuario = async (e) => {
@@ -167,6 +167,13 @@ const UsuarioPage = () => {
         setCurrentPage(1);
     };
 
+    if (loading) return (
+        <div className="text-center p-auto">
+            <div className="spinner-border spinner-border-sm text-primary" role="status">
+            <span className="visually-hidden">Carregando...</span>
+            </div>
+        </div>
+    )
     
     return (
         <div className="container mt-5">

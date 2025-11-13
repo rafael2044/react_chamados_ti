@@ -51,6 +51,10 @@ const ChamadosPage = () => {
   const [unidades, setUnidades] = useState([]);
   const [modulos, setModulos] = useState([]);
   const [statusList, setStatusList] = useState([]);
+
+  const showToast = useCallback((message, type = "info") => {
+    setToast({ show: true, message, type });
+  },[setToast]);
   
   const fetchChamados = useCallback(async () => {
     setLoadingChamados(true);
@@ -74,7 +78,7 @@ const ChamadosPage = () => {
       } finally {
         setLoadingChamados(false);
       }
-    }, [currentPage, search, filtroModulo, filtroUnidade, filtroStatus, filtroUrgencia])
+    }, [currentPage, search, filtroModulo, filtroUnidade, filtroStatus, filtroUrgencia, showToast])
 
     
   useEffect(() => {
@@ -97,7 +101,7 @@ const ChamadosPage = () => {
       }
     }
     fetchFilterData();
-  }, [currentPage]);
+  }, [currentPage, showToast]);
 
   useEffect(() => {
     fetchChamados();
@@ -243,10 +247,7 @@ const ChamadosPage = () => {
     setModalAtendimentoAberto(false);
     setChamadoSelecionado(null);
   };
-  
-  const showToast = (message, type = "info") => {
-    setToast({ show: true, message, type });
-  };
+
 
   const handlePageChange = (page) => {
     if(page < 1 || page > data.total_pages || page === currentPage) return;

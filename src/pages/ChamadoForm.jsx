@@ -29,39 +29,38 @@ const ChamadoForm = () => {
       type: "info",
   });
 
-  const fetchUnidades = async () => {
-    setLoading(true);
-    try {
-        const dataResp = await getUnidades();
-        setUnidades(dataResp.unidades);
-        if (dataResp.unidades.length > 0){
-          setUnidade(dataResp.unidades[0]?.id)
+  useEffect(() => {
+    const fetchUnidades = async () => {
+      setLoading(true);
+      try {
+          const dataResp = await getUnidades();
+          setUnidades(dataResp.unidades);
+          if (dataResp.unidades.length > 0){
+            setUnidade(dataResp.unidades[0]?.id)
+          }
+        } catch (err) {
+          console.error(err);
+          showToast("Erro ao carregar unidades", "error")
+        } finally {
+          setLoading(false);
+        }
+    };
+
+    const fetchModulos = async () => {
+      setLoading(true);
+      try {
+        const dataResp = await getModulos();
+        setModulos(dataResp.modulos);
+        if (dataResp.modulos.length > 0){
+          setModulo(dataResp.modulos[0]?.id)
         }
       } catch (err) {
         console.error(err);
-        showToast("Erro ao carregar unidades", "error")
+        showToast("Erro ao carregar modulos", "error")
       } finally {
-        setLoading(false);
+          setLoading(false);
       }
-  };
-
-  const fetchModulos = async () => {
-    setLoading(true);
-    try {
-      const dataResp = await getModulos();
-      setModulos(dataResp.modulos);
-      if (dataResp.modulos.length > 0){
-        setModulo(dataResp.modulos[0]?.id)
-      }
-    } catch (err) {
-      console.error(err);
-      showToast("Erro ao carregar modulos", "error")
-    } finally {
-        setLoading(false);
-    }
-  };
-
-  useEffect(() => {
+    };
     fetchUnidades();
     fetchModulos();
   }, []);

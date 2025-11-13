@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useEffect, useState, useCallback} from "react";
 import {getUnidades, insertUnidade, deleteUnidade} from "../services/api";
 import ToastMessage from "../components/ToastMessage";
 import {getPaginationItems, getTotalPages} from '../utils/utils'
@@ -38,7 +38,7 @@ const UnidadePage = () => {
     };
 
 
-    const fetchUnidades = async () => {
+    const fetchUnidades = useCallback(async () => {
         setLoadingUnidades(true);
         try {
                 const dataResp = await getUnidades(currentPage, ITEMS_PER_PAGE);
@@ -49,11 +49,11 @@ const UnidadePage = () => {
         } finally {
             setLoadingUnidades(false);
         }
-    } 
+    }, [currentPage]);
 
     useEffect(() => {
         fetchUnidades();
-    }, [currentPage]);
+    }, [currentPage, fetchUnidades]);
 
 
     const cadastrarUnidade = async (e) => {
