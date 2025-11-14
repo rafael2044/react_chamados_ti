@@ -5,6 +5,10 @@ import {
     XAxis, YAxis, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 import { api } from "../services/api";
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import RelatorioUnidadePDF from '../components/RelatorioUnidadePDF';
+import RelatorioModuloPDF from '../components/RelatorioModuloPDF'; 
+import {formatarIsoParaBr} from '../utils/dateUtils';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#FA8072'];
 
@@ -21,6 +25,10 @@ export default function RelatorioPage() {
     // --- Estados para o Gráfico 2 (TMR por Módulo) ---
     const [tmrData, setTmrData] = useState([]);
     const [isTmrLoading, setIsTmrLoading] = useState(true);
+
+    // --- Estados para o Gráfico 2 (TMR por Módulo) ---
+    const [tmrUnidadeData, setTmrUnidadeData] = useState([]);
+    const [isTmrUnidadeLoading, setIsTmrUnidadeLoading] = useState(true);
 
     // --- Estados para o Gráfico 3 (Chamados por Status) ---
     const [statusData, setStatusData] = useState([]);
@@ -70,6 +78,20 @@ export default function RelatorioPage() {
         }
     },[buildUrlParams]);
 
+    // Fetch Gráfico 2
+    const fetchTmrUnidadeData = useCallback (async (isFilterRequest = false) => {
+        if (!isFilterRequest) setIsTmrUnidadeLoading(true);
+        try {
+            const params = buildUrlParams();
+            const response = await api.get(`/relatorio/tmr-por-unidade?${params}`);
+            setTmrUnidadeData(response.data);
+        } catch (error) {
+            console.error("Erro ao buscar dados de TMR:", error);
+        } finally {
+            if (!isFilterRequest) setIsTmrUnidadeLoading(false);
+        }
+    },[buildUrlParams]);
+
     // Fetch Gráfico 3
     const fetchStatusData = useCallback(async (isFilterRequest = false) => {
         if (!isFilterRequest) setIsStatusLoading(true);
@@ -108,7 +130,8 @@ export default function RelatorioPage() {
         fetchTmrData(false);
         fetchStatusData(false);
         fetchUnidadeData(false);
-    }, [fetchModuloData, fetchTmrData, fetchStatusData, fetchUnidadeData]); // O array vazio [] garante que isso rode apenas UMA vez no mount
+        fetchTmrUnidadeData(false);
+    }, [fetchModuloData, fetchTmrData, fetchStatusData, fetchUnidadeData, fetchTmrUnidadeData]); // O array vazio [] garante que isso rode apenas UMA vez no mount
 
     // Handler do botão "Filtrar"
     const handleFilterSubmit = async (e) => {
@@ -120,7 +143,8 @@ export default function RelatorioPage() {
             fetchModuloData(true),
             fetchTmrData(true),
             fetchStatusData(true),
-            fetchUnidadeData(true)
+            fetchUnidadeData(true),
+            fetchTmrUnidadeData(true)
         ]);
         
         setIsFiltering(false);
@@ -228,6 +252,18 @@ export default function RelatorioPage() {
                         </div>
                     )}
                 </div>
+                <div>
+                    <PDFDownloadLink
+                        document={
+                        <RelatorioModuloPDF 
+                        dataInicio={formatarIsoParaBr(dataInicio)} 
+                        dataFim={formatarIsoParaBr(dataFim)} 
+                        dados={moduloData}/>
+                    }
+                        fileName="relatorio-chamados-por-modulo.pdf"
+                        className="btn btn-primary w-100"
+                    >Baixar Relatorio</PDFDownloadLink>
+                </div>
             </div>
 
             {/* --- Gráfico 1 (Chamados por Unidade) --- */}
@@ -251,6 +287,18 @@ export default function RelatorioPage() {
                             </ResponsiveContainer>
                         </div>
                     )}
+                </div>
+                <div>
+                    <PDFDownloadLink
+                        document={
+                        <RelatorioUnidadePDF 
+                        dataInicio={formatarIsoParaBr(dataInicio)} 
+                        dataFim={formatarIsoParaBr(dataFim)} 
+                        dados={unidadeData}/>
+                    }
+                        fileName="relatorio-chamados-por-unidade.pdf"
+                        className="btn btn-primary w-100"
+                    >Baixar Relatorio</PDFDownloadLink>
                 </div>
             </div>
 
@@ -278,6 +326,31 @@ export default function RelatorioPage() {
                 </div>
             </div>
             
+
+            {/* --- Gráfico 2 (TMR por Unidade) --- */}
+            <div className="card shadow-sm mb-4">
+                <div className="card-header">
+                    <h5 className="mb-0">TMR por Unidade (em Horas)</h5>
+                </div>
+                <div className="card-body">
+                    {isTmrLoading ? (
+                        <LoadingSpinner />
+                    ) : (
+                        <div style={{ width: '100%', height: 400 }}> 
+                            <ResponsiveContainer>
+                                <BarChart data={tmrUnidadeData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                                    <XAxis dataKey="nome" />
+                                    <YAxis unit="h" />
+                                    <Tooltip formatter={(value) => `${parseFloat(value).toFixed(2)} horas`} />
+                                    <Legend />
+                                    <Bar dataKey="tempo_medio" fill="#198754" name="Tempo Médio (Horas)" /> 
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    )}
+                </div>
+            </div>
+
             {/* --- Gráfico 3 (Chamados por Status) --- */}
             <div className="card shadow-sm mb-4">
                 <div className="card-header">
